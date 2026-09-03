@@ -236,7 +236,39 @@ function AddToServerRow({ guild, sticker }) {
         var mime = MIME_MAP[resolvedSticker.format_type] ?? "image/png";
         var uploadFilename = resolvedSticker.name + "." + ext;
         var res;
-        {
+        if (RestAPI?.post) {
+          try {
+            var apiUploadRes = yield RestAPI.post({
+              url: "/guilds/" + guild.id + "/stickers",
+              body: {
+                name: resolvedSticker.name,
+                description: resolvedSticker.description ?? resolvedSticker.name,
+                tags: resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50"
+              },
+              files: [
+                {
+                  name: uploadFilename,
+                  originalFilename: uploadFilename,
+                  mimeType: mime,
+                  data: blob
+                }
+              ]
+            });
+            res = {
+              ok: true,
+              status: 200,
+              body: apiUploadRes?.body
+            };
+          } catch (e) {
+            res = {
+              ok: false,
+              status: e?.status ?? 0,
+              body: e?.body ?? e?.response?.body ?? {
+                message: e?.message ?? String(e)
+              }
+            };
+          }
+        } else {
           var form = new FormData();
           form.append("file", blob, uploadFilename);
           form.append("name", resolvedSticker.name);
@@ -260,10 +292,13 @@ function AddToServerRow({ guild, sticker }) {
         if (res.ok) {
           (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
-          (0, import_toasts.showToast)(JSON.stringify(res.body ?? {
+          var { clipboard: clipboard2 } = require("@vendetta/metro/common");
+          var fullErrorText = JSON.stringify(res.body ?? {
             message: "no body",
             status: res.status
-          }), (0, import_assets.getAssetIDByName)("Small"));
+          });
+          clipboard2.setString(fullErrorText);
+          (0, import_toasts.showToast)("Failed \u2014 full error copied to clipboard, paste it somewhere", (0, import_assets.getAssetIDByName)("Small"));
         }
       } catch (e) {
         (0, import_toasts.showToast)(e?.message ?? "Something went wrong", (0, import_assets.getAssetIDByName)("Small"));
