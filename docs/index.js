@@ -463,8 +463,12 @@ function patchMessageStickerActionSheet() {
     }
     try {
       var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
-      __dbgToast("sheet=" + name + " ctxKeys=" + Object.keys(context ?? {}).join(",") + " rs=" + JSON.stringify(context?.renderableSticker ?? null) + " s=" + JSON.stringify(context?.sticker ?? null) + " sn=" + JSON.stringify(context?.stickerNode ?? null));
+      var { findByStoreName: __dbgFind } = require("@vendetta/metro");
+      var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
+      __dbgToast("storeKeys=" + Object.keys(__dbgStore ?? {}).join(","));
     } catch (e) {
+      var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
+      __dbgToast2("store lookup threw: " + (e?.message ?? e));
     }
     var sticker = pickFullSticker(context?.renderableSticker, context?.sticker, context?.stickerNode);
     if (!lazySheet || typeof lazySheet.then !== "function") {
