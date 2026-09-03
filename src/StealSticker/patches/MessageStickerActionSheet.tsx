@@ -62,9 +62,12 @@ export default function patchMessageStickerActionSheet() {
                 var { findByStoreName: __dbgFind } = require("@vendetta/metro");
                 var { clipboard: __dbgClip } = require("@vendetta/metro/common");
                 var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
-                var __dbgKeys = Object.keys(__dbgStore ?? {}).join(", ");
-                __dbgClip.setString(__dbgKeys);
-                __dbgToast("Store keys copied to clipboard (" + Object.keys(__dbgStore ?? {}).length + " total) — paste them somewhere");
+                var __dbgProto = Object.getPrototypeOf(__dbgStore ?? {});
+                var __dbgProtoKeys = Object.getOwnPropertyNames(__dbgProto ?? {}).filter(function (k) {
+                    return typeof (__dbgStore as any)?.[k] === "function";
+                });
+                __dbgClip.setString(__dbgProtoKeys.join(", "));
+                __dbgToast("Proto methods copied (" + __dbgProtoKeys.length + " total) — paste them somewhere");
             } catch (e) {
                 var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
                 __dbgToast2("store lookup threw: " + (e?.message ?? e));
