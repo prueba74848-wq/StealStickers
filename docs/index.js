@@ -438,6 +438,12 @@ var import_metro3 = require("@vendetta/metro");
 var { TouchableOpacity } = import_components3.General;
 var _patchedModules = /* @__PURE__ */ new WeakSet();
 var DirectSheet = (0, import_metro3.findByProps)("StickerDetails") ?? (0, import_metro3.findByProps)("stickerActionSheet") ?? (0, import_metro3.findByProps)("StickerActionSheet");
+function pickFullSticker(...candidates) {
+  var withFormat = candidates.find(function(c) {
+    return c && c.format_type !== void 0;
+  });
+  return withFormat ?? candidates.find(Boolean);
+}
 function patchMessageStickerActionSheet() {
   if (DirectSheet) {
     return patchSheet("default", DirectSheet);
@@ -455,7 +461,7 @@ function patchMessageStickerActionSheet() {
     if (!nameLower.includes("sticker") || nameLower.includes("addtoserver")) {
       return originalOpenLazy.apply(this, args);
     }
-    var sticker = context?.renderableSticker ?? context?.sticker ?? context?.stickerNode;
+    var sticker = pickFullSticker(context?.renderableSticker, context?.sticker, context?.stickerNode);
     if (!lazySheet || typeof lazySheet.then !== "function") {
       return originalOpenLazy.apply(this, args);
     }
@@ -518,7 +524,7 @@ function patchMessageStickerActionSheet() {
           throw e;
         }
         var props = arguments[0] ?? {};
-        var finalSticker = module2._ssCurrentSticker ?? props?.renderableSticker ?? props?.sticker ?? props?.stickerNode;
+        var finalSticker = module2._ssCurrentSticker ?? pickFullSticker(props?.renderableSticker, props?.sticker, props?.stickerNode);
         if (finalSticker && res) {
           try {
             injectButtons(res, finalSticker);
@@ -635,7 +641,7 @@ function appendToTree(tree, element) {
 function patchSheet(funcName, sheetModule) {
   return (0, import_patcher.after)(funcName, sheetModule, function(callArgs, res) {
     var props = callArgs[0] ?? {};
-    var s = props?.sticker ?? props?.stickerNode ?? props?.renderableSticker;
+    var s = pickFullSticker(props?.sticker, props?.stickerNode, props?.renderableSticker);
     if (!s)
       return;
     injectButtons(res, s);
