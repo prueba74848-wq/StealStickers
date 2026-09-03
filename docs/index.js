@@ -231,46 +231,16 @@ function AddToServerRow({ guild, sticker }) {
           (0, import_toasts.showToast)("Unsupported format_type=" + resolvedSticker.format_type + " keys=" + Object.keys(resolvedSticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
           return;
         }
-        var imgRes = yield fetch(uploadUrl);
-        var blob = yield imgRes.blob();
         var mime = MIME_MAP[resolvedSticker.format_type] ?? "image/png";
         var uploadFilename = resolvedSticker.name + "." + ext;
         var res;
-        if (RestAPI?.post) {
-          try {
-            var uploadForm = new FormData();
-            uploadForm.append("file", {
-              uri: uploadUrl,
-              name: uploadFilename,
-              type: mime
-            });
-            uploadForm.append("name", resolvedSticker.name);
-            uploadForm.append("description", resolvedSticker.description ?? resolvedSticker.name);
-            uploadForm.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
-            var apiUploadRes = yield RestAPI.post({
-              url: "/guilds/" + guild.id + "/stickers",
-              body: uploadForm,
-              headers: {
-                "Content-Type": "multipart/form-data"
-              }
-            });
-            res = {
-              ok: true,
-              status: 200,
-              body: apiUploadRes?.body
-            };
-          } catch (e) {
-            res = {
-              ok: false,
-              status: e?.status ?? 0,
-              body: e?.body ?? e?.response?.body ?? {
-                message: e?.message ?? String(e)
-              }
-            };
-          }
-        } else {
+        {
           var form = new FormData();
-          form.append("file", blob, uploadFilename);
+          form.append("file", {
+            uri: uploadUrl,
+            name: uploadFilename,
+            type: mime
+          });
           form.append("name", resolvedSticker.name);
           form.append("description", resolvedSticker.description ?? resolvedSticker.name);
           form.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
