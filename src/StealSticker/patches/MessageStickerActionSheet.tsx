@@ -56,6 +56,18 @@ export default function patchMessageStickerActionSheet() {
                 return originalOpenLazy.apply(this, args);
             }
 
+            // TEMP DEBUG — remove once format_type issue is fixed
+            try {
+                var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
+                __dbgToast(
+                    "sheet=" + name +
+                    " ctxKeys=" + Object.keys(context ?? {}).join(",") +
+                    " rs=" + JSON.stringify(context?.renderableSticker ?? null) +
+                    " s=" + JSON.stringify(context?.sticker ?? null) +
+                    " sn=" + JSON.stringify(context?.stickerNode ?? null)
+                );
+            } catch (e) {}
+
             var sticker: StickerNode | undefined = pickFullSticker(
                 context?.renderableSticker,
                 context?.sticker,
@@ -242,6 +254,13 @@ function appendToTree(tree: any, element: any) {
 function patchSheet(funcName: string, sheetModule: any) {
     return after(funcName, sheetModule, function(callArgs: any[], res: any) {
         var props = callArgs[0] ?? {};
+
+        // TEMP DEBUG — remove once format_type issue is fixed
+        try {
+            var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
+            __dbgToast2("patchSheet ran, props keys=" + Object.keys(props).join(","));
+        } catch (e) {}
+
         var s: StickerNode | undefined = pickFullSticker(
             props?.sticker,
             props?.stickerNode,
