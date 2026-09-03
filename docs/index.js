@@ -73,6 +73,7 @@ var GuildStore = (0, import_metro.findByStoreName)("GuildStore");
 var StickerStore = (0, import_metro.findByStoreName)("StickersStore") ?? (0, import_metro.findByStoreName)("StickerStore");
 var PermissionsStore = (0, import_metro.findByStoreName)("PermissionStore");
 var AuthenticationStore = (0, import_metro.findByStoreName)("AuthenticationStore");
+var RestAPI = (0, import_metro.findByProps)("getAPIBaseURL", "get", "post") ?? (0, import_metro.findByProps)("get", "post", "patch");
 var { default: GuildIcon, GuildIconSizes } = (0, import_metro.findByProps)("GuildIconSizes") ?? {};
 var { downloadMediaAsset } = (0, import_metro.findByProps)("downloadMediaAsset") ?? {};
 var constants = (0, import_metro.findByProps)("Fonts", "Permissions");
@@ -174,22 +175,40 @@ function resolveFullSticker(sticker, token) {
       return sticker;
     if (!sticker.id)
       return sticker;
-    var res = yield fetch("https://discord.com/api/v10/stickers/" + sticker.id, {
-      headers: token ? {
-        Authorization: token
-      } : void 0
-    });
-    if (!res.ok)
+    if (RestAPI?.get) {
+      try {
+        var apiRes = yield RestAPI.get({
+          url: "/stickers/" + sticker.id
+        });
+        var body = apiRes?.body ?? apiRes;
+        if (body)
+          return {
+            ...sticker,
+            ...body
+          };
+      } catch (e) {
+      }
+    }
+    try {
+      var res = yield fetch("https://discord.com/api/v10/stickers/" + sticker.id, {
+        headers: token ? {
+          Authorization: token
+        } : void 0
+      });
+      if (!res.ok)
+        return sticker;
+      var full = yield res.json().catch(function() {
+        return null;
+      });
+      if (!full)
+        return sticker;
+      return {
+        ...sticker,
+        ...full
+      };
+    } catch (e) {
       return sticker;
-    var full = yield res.json().catch(function() {
-      return null;
-    });
-    if (!full)
-      return sticker;
-    return {
-      ...sticker,
-      ...full
-    };
+    }
   })();
 }
 function AddToServerRow({ guild, sticker }) {
@@ -214,20 +233,45 @@ function AddToServerRow({ guild, sticker }) {
         form.append("name", resolvedSticker.name);
         form.append("description", resolvedSticker.description ?? resolvedSticker.name);
         form.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
-        var res = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
-          method: "POST",
-          headers: {
-            Authorization: token
-          },
-          body: form
-        });
+        var res;
+        if (RestAPI?.post) {
+          try {
+            var apiUploadRes = yield RestAPI.post({
+              url: "/guilds/" + guild.id + "/stickers",
+              body: form
+            });
+            res = {
+              ok: true,
+              status: 200,
+              body: apiUploadRes?.body
+            };
+          } catch (e) {
+            res = {
+              ok: false,
+              status: e?.status ?? 0,
+              body: e?.body
+            };
+          }
+        } else {
+          var rawRes = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
+            method: "POST",
+            headers: {
+              Authorization: token
+            },
+            body: form
+          });
+          res = {
+            ok: rawRes.ok,
+            status: rawRes.status,
+            body: yield rawRes.json().catch(function() {
+              return {};
+            })
+          };
+        }
         if (res.ok) {
           (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
-          var err = yield res.json().catch(function() {
-            return {};
-          });
-          (0, import_toasts.showToast)(err?.message ?? "Failed (" + res.status + ")", (0, import_assets.getAssetIDByName)("Small"));
+          (0, import_toasts.showToast)(res.body?.message ?? "Failed (" + res.status + ")", (0, import_assets.getAssetIDByName)("Small"));
         }
       } catch (e) {
         (0, import_toasts.showToast)(e?.message ?? "Something went wrong", (0, import_assets.getAssetIDByName)("Small"));
