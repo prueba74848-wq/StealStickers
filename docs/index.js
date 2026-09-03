@@ -249,7 +249,9 @@ function AddToServerRow({ guild, sticker }) {
             res = {
               ok: false,
               status: e?.status ?? 0,
-              body: e?.body
+              body: e?.body ?? e?.response?.body ?? {
+                message: e?.message ?? String(e)
+              }
             };
           }
         } else {
@@ -271,7 +273,10 @@ function AddToServerRow({ guild, sticker }) {
         if (res.ok) {
           (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
-          (0, import_toasts.showToast)(res.body?.message ?? "Failed (" + res.status + ")", (0, import_assets.getAssetIDByName)("Small"));
+          (0, import_toasts.showToast)(JSON.stringify(res.body ?? {
+            message: "no body",
+            status: res.status
+          }), (0, import_assets.getAssetIDByName)("Small"));
         }
       } catch (e) {
         (0, import_toasts.showToast)(e?.message ?? "Something went wrong", (0, import_assets.getAssetIDByName)("Small"));
