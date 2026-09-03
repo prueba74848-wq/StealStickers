@@ -238,20 +238,21 @@ function AddToServerRow({ guild, sticker }) {
         var res;
         if (RestAPI?.post) {
           try {
+            var uploadForm = new FormData();
+            uploadForm.append("file", {
+              uri: uploadUrl,
+              name: uploadFilename,
+              type: mime
+            });
+            uploadForm.append("name", resolvedSticker.name);
+            uploadForm.append("description", resolvedSticker.description ?? resolvedSticker.name);
+            uploadForm.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
             var apiUploadRes = yield RestAPI.post({
               url: "/guilds/" + guild.id + "/stickers",
-              body: {
-                name: resolvedSticker.name,
-                description: resolvedSticker.description ?? resolvedSticker.name,
-                tags: resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50"
-              },
-              files: [
-                {
-                  uri: uploadUrl,
-                  name: uploadFilename,
-                  type: mime
-                }
-              ]
+              body: uploadForm,
+              headers: {
+                "Content-Type": "multipart/form-data"
+              }
             });
             res = {
               ok: true,
