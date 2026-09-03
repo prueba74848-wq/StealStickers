@@ -17,6 +17,21 @@ var DirectSheet =
     findByProps("stickerActionSheet") ??
     findByProps("StickerActionSheet");
 
+// Prefer whichever candidate actually has format_type — on Android,
+// `renderableSticker` is often a stripped preview object ({ name, id })
+// used only for the sheet header icon, not the full sticker resource.
+// A plain `??` chain picks the first *truthy* value regardless of
+// completeness, so it can lock onto the stripped object even when a
+// fuller one is available under a different key.
+function pickFullSticker(
+    ...candidates: (StickerNode | undefined)[]
+): StickerNode | undefined {
+    var withFormat = candidates.find(function (c) {
+        return c && (c as any).format_type !== undefined;
+    });
+    return withFormat ?? candidates.find(Boolean);
+}
+
 export default function patchMessageStickerActionSheet() {
     if (DirectSheet) {
         return patchSheet("default", DirectSheet);
@@ -41,10 +56,11 @@ export default function patchMessageStickerActionSheet() {
                 return originalOpenLazy.apply(this, args);
             }
 
-            var sticker: StickerNode | undefined =
-                context?.renderableSticker ??
-                context?.sticker ??
-                context?.stickerNode;
+            var sticker: StickerNode | undefined = pickFullSticker(
+                context?.renderableSticker,
+                context?.sticker,
+                context?.stickerNode
+            );
 
             if (!lazySheet || typeof lazySheet.then !== "function") {
                 return originalOpenLazy.apply(this, args);
@@ -118,9 +134,7 @@ export default function patchMessageStickerActionSheet() {
                     var props = arguments[0] ?? {};
                     var finalSticker: StickerNode | undefined =
                         module._ssCurrentSticker ??
-                        props?.renderableSticker ??
-                        props?.sticker ??
-                        props?.stickerNode;
+                        pickFullSticker(props?.renderableSticker, props?.sticker, props?.stickerNode);
 
                     if (finalSticker && res) {
                         try {
@@ -228,7 +242,11 @@ function appendToTree(tree: any, element: any) {
 function patchSheet(funcName: string, sheetModule: any) {
     return after(funcName, sheetModule, function(callArgs: any[], res: any) {
         var props = callArgs[0] ?? {};
-        var s: StickerNode | undefined = props?.sticker ?? props?.stickerNode ?? props?.renderableSticker;
+        var s: StickerNode | undefined = pickFullSticker(
+            props?.sticker,
+            props?.stickerNode,
+            props?.renderableSticker
+        );
         if (!s) return;
         injectButtons(res, s);
     });
