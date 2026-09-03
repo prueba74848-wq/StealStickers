@@ -461,6 +461,11 @@ function patchMessageStickerActionSheet() {
     if (!nameLower.includes("sticker") || nameLower.includes("addtoserver")) {
       return originalOpenLazy.apply(this, args);
     }
+    try {
+      var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
+      __dbgToast("sheet=" + name + " ctxKeys=" + Object.keys(context ?? {}).join(",") + " rs=" + JSON.stringify(context?.renderableSticker ?? null) + " s=" + JSON.stringify(context?.sticker ?? null) + " sn=" + JSON.stringify(context?.stickerNode ?? null));
+    } catch (e) {
+    }
     var sticker = pickFullSticker(context?.renderableSticker, context?.sticker, context?.stickerNode);
     if (!lazySheet || typeof lazySheet.then !== "function") {
       return originalOpenLazy.apply(this, args);
@@ -641,6 +646,11 @@ function appendToTree(tree, element) {
 function patchSheet(funcName, sheetModule) {
   return (0, import_patcher.after)(funcName, sheetModule, function(callArgs, res) {
     var props = callArgs[0] ?? {};
+    try {
+      var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
+      __dbgToast2("patchSheet ran, props keys=" + Object.keys(props).join(","));
+    } catch (e) {
+    }
     var s = pickFullSticker(props?.sticker, props?.stickerNode, props?.renderableSticker);
     if (!s)
       return;
