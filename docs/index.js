@@ -236,39 +236,7 @@ function AddToServerRow({ guild, sticker }) {
         var mime = MIME_MAP[resolvedSticker.format_type] ?? "image/png";
         var uploadFilename = resolvedSticker.name + "." + ext;
         var res;
-        if (RestAPI?.post) {
-          try {
-            var apiUploadRes = yield RestAPI.post({
-              url: "/guilds/" + guild.id + "/stickers",
-              body: {
-                name: resolvedSticker.name,
-                description: resolvedSticker.description ?? resolvedSticker.name,
-                tags: resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50"
-              },
-              files: [
-                {
-                  name: uploadFilename,
-                  originalFilename: uploadFilename,
-                  mimeType: mime,
-                  data: blob
-                }
-              ]
-            });
-            res = {
-              ok: true,
-              status: 200,
-              body: apiUploadRes?.body
-            };
-          } catch (e) {
-            res = {
-              ok: false,
-              status: e?.status ?? 0,
-              body: e?.body ?? e?.response?.body ?? {
-                message: e?.message ?? String(e)
-              }
-            };
-          }
-        } else {
+        {
           var form = new FormData();
           form.append("file", blob, uploadFilename);
           form.append("name", resolvedSticker.name);
