@@ -183,9 +183,8 @@ function AddToServerRow({ guild, sticker }) {
     return _async_to_generator(function* () {
       LazyActionSheet?.hideActionSheet?.();
       try {
-        (0, import_toasts.showToast)("format_type=" + sticker.format_type + " keys=" + Object.keys(sticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
         if (!uploadUrl) {
-          (0, import_toasts.showToast)("Unsupported sticker format", (0, import_assets.getAssetIDByName)("Small"));
+          (0, import_toasts.showToast)("Unsupported format_type=" + sticker.format_type + " keys=" + Object.keys(sticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
           return;
         }
         var imgRes = yield fetch(uploadUrl);
