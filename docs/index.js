@@ -247,10 +247,9 @@ function AddToServerRow({ guild, sticker }) {
               },
               files: [
                 {
+                  uri: uploadUrl,
                   name: uploadFilename,
-                  originalFilename: uploadFilename,
-                  mimeType: mime,
-                  data: blob
+                  type: mime
                 }
               ]
             });
