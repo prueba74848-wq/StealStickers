@@ -48,7 +48,7 @@ export default function AddToServerRow({
     var addToServer = async function() {
     LazyActionSheet?.hideActionSheet?.();
     try {
-        console.log("[StealSticker DEBUG]", JSON.stringify(sticker));
+        alert("[StealSticker DEBUG] " + JSON.stringify(sticker));
         if (!uploadUrl) {
             showToast("Unsupported sticker format", getAssetIDByName("Small"));
             return;
