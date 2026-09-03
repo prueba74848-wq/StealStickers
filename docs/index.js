@@ -464,8 +464,11 @@ function patchMessageStickerActionSheet() {
     try {
       var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
       var { findByStoreName: __dbgFind } = require("@vendetta/metro");
+      var { clipboard: __dbgClip } = require("@vendetta/metro/common");
       var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
-      __dbgToast("storeKeys=" + Object.keys(__dbgStore ?? {}).join(","));
+      var __dbgKeys = Object.keys(__dbgStore ?? {}).join(", ");
+      __dbgClip.setString(__dbgKeys);
+      __dbgToast("Store keys copied to clipboard (" + Object.keys(__dbgStore ?? {}).length + " total) \u2014 paste them somewhere");
     } catch (e) {
       var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
       __dbgToast2("store lookup threw: " + (e?.message ?? e));
