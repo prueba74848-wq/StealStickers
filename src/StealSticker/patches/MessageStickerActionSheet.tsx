@@ -59,14 +59,15 @@ export default function patchMessageStickerActionSheet() {
             // TEMP DEBUG — remove once format_type issue is fixed
             try {
                 var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
+                var { findByStoreName: __dbgFind } = require("@vendetta/metro");
+                var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
                 __dbgToast(
-                    "sheet=" + name +
-                    " ctxKeys=" + Object.keys(context ?? {}).join(",") +
-                    " rs=" + JSON.stringify(context?.renderableSticker ?? null) +
-                    " s=" + JSON.stringify(context?.sticker ?? null) +
-                    " sn=" + JSON.stringify(context?.stickerNode ?? null)
+                    "storeKeys=" + Object.keys(__dbgStore ?? {}).join(",")
                 );
-            } catch (e) {}
+            } catch (e) {
+                var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
+                __dbgToast2("store lookup threw: " + (e?.message ?? e));
+            }
 
             var sticker: StickerNode | undefined = pickFullSticker(
                 context?.renderableSticker,
