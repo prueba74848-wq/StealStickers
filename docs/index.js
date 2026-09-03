@@ -157,11 +157,6 @@ function _async_to_generator(fn) {
 }
 var FormRow = import_components.Forms?.FormRow;
 var FormIcon = import_components.Forms?.FormIcon;
-var MIME_MAP = {
-  1: "image/png",
-  2: "image/png",
-  4: "image/gif"
-};
 function getUploadUrl(sticker) {
   switch (sticker.format_type) {
     case 1:
@@ -173,28 +168,52 @@ function getUploadUrl(sticker) {
       return null;
   }
 }
+function resolveFullSticker(sticker, token) {
+  return _async_to_generator(function* () {
+    if (sticker.format_type !== void 0)
+      return sticker;
+    if (!sticker.id)
+      return sticker;
+    var res = yield fetch("https://discord.com/api/v10/stickers/" + sticker.id, {
+      headers: token ? {
+        Authorization: token
+      } : void 0
+    });
+    if (!res.ok)
+      return sticker;
+    var full = yield res.json().catch(function() {
+      return null;
+    });
+    if (!full)
+      return sticker;
+    return {
+      ...sticker,
+      ...full
+    };
+  })();
+}
 function AddToServerRow({ guild, sticker }) {
   if (!FormRow)
     return null;
-  var uploadUrl = getUploadUrl(sticker);
-  var ext = getStickerExtension(sticker);
-  var mime = MIME_MAP[sticker.format_type] ?? "image/png";
   var addToServer = function addToServer2() {
     return _async_to_generator(function* () {
       LazyActionSheet?.hideActionSheet?.();
       try {
+        var token = AuthenticationStore?.getToken?.();
+        var resolvedSticker = yield resolveFullSticker(sticker, token);
+        var uploadUrl = getUploadUrl(resolvedSticker);
+        var ext = getStickerExtension(resolvedSticker);
         if (!uploadUrl) {
-          (0, import_toasts.showToast)("Unsupported format_type=" + sticker.format_type + " keys=" + Object.keys(sticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
+          (0, import_toasts.showToast)("Unsupported format_type=" + resolvedSticker.format_type + " keys=" + Object.keys(resolvedSticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
           return;
         }
         var imgRes = yield fetch(uploadUrl);
         var blob = yield imgRes.blob();
         var form = new FormData();
-        form.append("file", blob, sticker.name + "." + ext);
-        form.append("name", sticker.name);
-        form.append("description", sticker.description ?? sticker.name);
-        form.append("tags", sticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
-        var token = AuthenticationStore?.getToken?.();
+        form.append("file", blob, resolvedSticker.name + "." + ext);
+        form.append("name", resolvedSticker.name);
+        form.append("description", resolvedSticker.description ?? resolvedSticker.name);
+        form.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
         var res = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
           method: "POST",
           headers: {
@@ -203,7 +222,7 @@ function AddToServerRow({ guild, sticker }) {
           body: form
         });
         if (res.ok) {
-          (0, import_toasts.showToast)("Added " + sticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
+          (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
           var err = yield res.json().catch(function() {
             return {};
@@ -460,21 +479,6 @@ function patchMessageStickerActionSheet() {
     var nameLower = (name || "").toLowerCase();
     if (!nameLower.includes("sticker") || nameLower.includes("addtoserver")) {
       return originalOpenLazy.apply(this, args);
-    }
-    try {
-      var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
-      var { findByStoreName: __dbgFind } = require("@vendetta/metro");
-      var { clipboard: __dbgClip } = require("@vendetta/metro/common");
-      var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
-      var __dbgProto = Object.getPrototypeOf(__dbgStore ?? {});
-      var __dbgProtoKeys = Object.getOwnPropertyNames(__dbgProto ?? {}).filter(function(k) {
-        return typeof __dbgStore?.[k] === "function";
-      });
-      __dbgClip.setString(__dbgProtoKeys.join(", "));
-      __dbgToast("Proto methods copied (" + __dbgProtoKeys.length + " total) \u2014 paste them somewhere");
-    } catch (e) {
-      var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
-      __dbgToast2("store lookup threw: " + (e?.message ?? e));
     }
     var sticker = pickFullSticker(context?.renderableSticker, context?.sticker, context?.stickerNode);
     if (!lazySheet || typeof lazySheet.then !== "function") {
