@@ -56,23 +56,6 @@ export default function patchMessageStickerActionSheet() {
                 return originalOpenLazy.apply(this, args);
             }
 
-            // TEMP DEBUG — remove once format_type issue is fixed
-            try {
-                var { showToast: __dbgToast } = require("@vendetta/ui/toasts");
-                var { findByStoreName: __dbgFind } = require("@vendetta/metro");
-                var { clipboard: __dbgClip } = require("@vendetta/metro/common");
-                var __dbgStore = __dbgFind("StickersStore") ?? __dbgFind("StickerStore");
-                var __dbgProto = Object.getPrototypeOf(__dbgStore ?? {});
-                var __dbgProtoKeys = Object.getOwnPropertyNames(__dbgProto ?? {}).filter(function (k) {
-                    return typeof (__dbgStore as any)?.[k] === "function";
-                });
-                __dbgClip.setString(__dbgProtoKeys.join(", "));
-                __dbgToast("Proto methods copied (" + __dbgProtoKeys.length + " total) — paste them somewhere");
-            } catch (e) {
-                var { showToast: __dbgToast2 } = require("@vendetta/ui/toasts");
-                __dbgToast2("store lookup threw: " + (e?.message ?? e));
-            }
-
             var sticker: StickerNode | undefined = pickFullSticker(
                 context?.renderableSticker,
                 context?.sticker,
