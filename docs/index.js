@@ -605,10 +605,28 @@ function patchMessageStickerActionSheet() {
     });
   };
 }
+var LOADER_RE = /ActivityIndicator|Spinner|Loading|ProgressBar/i;
+function isLoaderNode(c) {
+  var n = c?.type?.displayName ?? c?.type?.name ?? "";
+  return LOADER_RE.test(n) || (c?.type && c.type === import_common.ReactNative?.ActivityIndicator);
+}
+function isLoadingTree(tree) {
+  try {
+    return !!(0, import_utils.findInReactTree)(tree, isLoaderNode);
+  } catch (_) {
+    return false;
+  }
+}
 function injectButtons(res, sticker) {
   if (!res)
     return;
   if (res._ssInjected)
+    return;
+  // Discord's built-in stickers: leave the normal sheet alone (avoids a native crash)
+  if (sticker?.pack_id || sticker?.type === 1)
+    return;
+  // Sheet is still showing a loading spinner: wait for the real content instead of attaching to the spinner
+  if (isLoadingTree(res))
     return;
   res._ssInjected = true;
   var stickerUrl = getStickerUrl(sticker);
@@ -684,6 +702,9 @@ function addButtonsToComponent(component, sticker, stickerUrl) {
 }
 function appendToTree(tree, element) {
   if (!tree)
+    return;
+  // Never add children to a spinner/progress bar: native views of that type can't have children
+  if (isLoaderNode(tree))
     return;
   if (Array.isArray(tree?.props?.children)) {
     tree.props.children.push(element);

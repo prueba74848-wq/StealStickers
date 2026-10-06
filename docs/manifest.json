@@ -1,15 +1,15 @@
 {
-  "name": "StealSticker",
-  "description": "Steal stickers from messages on mobile with ease.",
-  "authors": [
-    {
-      "name": "brotherguns",
-      "id": "0"
-    }
-  ],
-  "main": "index.js",
-  "vendetta": {
-    "icon": "ic_sticker_24px"
-  },
-  "hash": "85f304c62e65c7009c0cf89f7a90f6e13817a4eb62b8c4feeaeb4807431bb1c9"
+    "name": "StealSticker",
+    "description": "Adds buttons to the sticker sheet to add, copy or save a sticker.",
+    "authors": [
+        {
+            "name": "you",
+            "id": "0"
+        }
+    ],
+    "main": "index.js",
+    "vendetta": {
+        "icon": "ic_sticker"
+    },
+    "hash": "1348da1a0c2bdfd906244e84d9bb2d79d0b4801aae2e6d925ee237286c1f0952"
 }
