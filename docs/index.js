@@ -163,17 +163,6 @@ var MIME_MAP = {
   2: "image/png",
   4: "image/gif"
 };
-function getUploadUrl(sticker) {
-  switch (sticker.format_type) {
-    case 1:
-    case 2:
-      return "https://cdn.discordapp.com/stickers/" + sticker.id + ".png";
-    case 4:
-      return "https://cdn.discordapp.com/stickers/" + sticker.id + ".gif";
-    default:
-      return null;
-  }
-}
 function resolveFullSticker(sticker, token) {
   return _async_to_generator(function* () {
     if (sticker.format_type !== void 0)
@@ -252,52 +241,73 @@ function AddToServerRow({ guild, sticker }) {
           description: resolvedSticker.description,
           keys: Object.keys(resolvedSticker)
         };
-        var uploadUrl = getUploadUrl(resolvedSticker);
         var ext = getStickerExtension(resolvedSticker);
-        dbg.uploadUrl = uploadUrl;
-        if (!uploadUrl) {
+        if (!ext) {
           copyDebug(dbg, "Unsupported format \u2014 debug info copied");
           return;
         }
+
+        // media.discordapp.net is the URL that actually serves stickers (cdn.* 404s for GIFs)
+        var candidates = [
+          "https://media.discordapp.net/stickers/" + resolvedSticker.id + "." + ext + "?size=320",
+          "https://cdn.discordapp.com/stickers/" + resolvedSticker.id + "." + ext
+        ];
         var mime = MIME_MAP[resolvedSticker.format_type] ?? "image/png";
         var uploadFilename = resolvedSticker.name + "." + ext;
+        dbg.candidates = candidates;
         dbg.mime = mime;
         dbg.filename = uploadFilename;
 
-        // Preflight: can the app even download the image, and how big is it?
-        dbg.step = "preflight";
-        try {
-          var pre = yield fetch(uploadUrl);
-          dbg.preflight = {
-            ok: pre.ok,
-            status: pre.status,
-            contentType: pre.headers?.get?.("content-type"),
-            contentLength: pre.headers?.get?.("content-length")
-          };
-        } catch (e) {
-          dbg.preflight = { error: errInfo(e) };
+        // 1. Download the image as a Blob (try each URL until one works)
+        dbg.step = "download";
+        var imgBlob = null;
+        dbg.downloads = [];
+        for (var u of candidates) {
+          try {
+            var r = yield fetch(u);
+            dbg.downloads.push({ url: u, status: r.status });
+            if (r.ok) {
+              imgBlob = yield r.blob();
+              break;
+            }
+          } catch (e) {
+            dbg.downloads.push({ url: u, error: errInfo(e) });
+          }
         }
+        if (!imgBlob) {
+          copyDebug(dbg, "Download failed \u2014 debug info copied");
+          return;
+        }
+        dbg.imageSize = imgBlob.size;
 
-        dbg.step = "buildForm";
-        var form = new FormData();
-        form.append("file", {
-          uri: uploadUrl,
-          name: uploadFilename,
-          type: mime
-        });
-        form.append("name", resolvedSticker.name);
-        form.append("description", resolvedSticker.description ?? resolvedSticker.name);
+        // 2. Build the multipart body manually (RN's FormData can't upload remote URLs)
+        dbg.step = "buildBody";
+        var boundary = "----StealSticker" + Date.now().toString(16);
+        var field = function(n, v) {
+          return "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + n + "\"\r\n\r\n" + v + "\r\n";
+        };
         var tag = resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50";
-        form.append("tags", tag);
         dbg.formFields = { name: resolvedSticker.name, tags: tag };
+        var multipartBody = new Blob([
+          field("name", resolvedSticker.name),
+          field("description", resolvedSticker.description || ""),
+          field("tags", tag),
+          "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + uploadFilename + "\"\r\nContent-Type: " + mime + "\r\n\r\n",
+          imgBlob,
+          "\r\n--" + boundary + "--\r\n"
+        ]);
 
+        // 3. Upload
         dbg.step = "upload";
         var rawRes;
         try {
           rawRes = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
             method: "POST",
-            headers: { Authorization: token },
-            body: form
+            headers: {
+              Authorization: token,
+              "Content-Type": "multipart/form-data; boundary=" + boundary
+            },
+            body: multipartBody
           });
         } catch (e) {
           dbg.uploadError = errInfo(e);
@@ -306,11 +316,11 @@ function AddToServerRow({ guild, sticker }) {
         }
 
         dbg.step = "readResponse";
-        var body = yield rawRes.json().catch(function() {
+        var resBody = yield rawRes.json().catch(function() {
           return {};
         });
         dbg.status = rawRes.status;
-        dbg.responseBody = body;
+        dbg.responseBody = resBody;
         if (rawRes.ok) {
           (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
