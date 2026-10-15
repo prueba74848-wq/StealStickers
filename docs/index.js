@@ -216,62 +216,109 @@ function resolveFullSticker(sticker, token) {
     }
   })();
 }
+// ---- DEBUG HELPERS: copy a JSON report to the clipboard on any failure ----
+function errInfo(e) {
+  return {
+    name: e?.name,
+    message: e?.message ?? String(e),
+    stack: e?.stack ? String(e.stack).split("\n").slice(0, 6).join("\n") : void 0
+  };
+}
+function copyDebug(dbg, toastMsg) {
+  try {
+    var { clipboard: cb } = require("@vendetta/metro/common");
+    cb.setString(JSON.stringify(dbg, null, 2));
+  } catch (_) {
+  }
+  (0, import_toasts.showToast)(toastMsg, (0, import_assets.getAssetIDByName)("Small"));
+}
 function AddToServerRow({ guild, sticker }) {
   if (!FormRow)
     return null;
   var addToServer = function addToServer2() {
     return _async_to_generator(function* () {
       LazyActionSheet?.hideActionSheet?.();
+      var dbg = { step: "start", guildId: guild.id, guildName: guild.name };
       try {
         var token = AuthenticationStore?.getToken?.();
+        dbg.hasToken = !!token; // token itself is never copied
+        dbg.step = "resolveFullSticker";
         var resolvedSticker = yield resolveFullSticker(sticker, token);
+        dbg.sticker = {
+          id: resolvedSticker.id,
+          name: resolvedSticker.name,
+          format_type: resolvedSticker.format_type,
+          tags: resolvedSticker.tags,
+          description: resolvedSticker.description,
+          keys: Object.keys(resolvedSticker)
+        };
         var uploadUrl = getUploadUrl(resolvedSticker);
         var ext = getStickerExtension(resolvedSticker);
+        dbg.uploadUrl = uploadUrl;
         if (!uploadUrl) {
-          (0, import_toasts.showToast)("Unsupported format_type=" + resolvedSticker.format_type + " keys=" + Object.keys(resolvedSticker).join(","), (0, import_assets.getAssetIDByName)("Small"));
+          copyDebug(dbg, "Unsupported format \u2014 debug info copied");
           return;
         }
         var mime = MIME_MAP[resolvedSticker.format_type] ?? "image/png";
         var uploadFilename = resolvedSticker.name + "." + ext;
-        var res;
-        {
-          var form = new FormData();
-          form.append("file", {
-            uri: uploadUrl,
-            name: uploadFilename,
-            type: mime
-          });
-          form.append("name", resolvedSticker.name);
-          form.append("description", resolvedSticker.description ?? resolvedSticker.name);
-          form.append("tags", resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50");
-          var rawRes = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
+        dbg.mime = mime;
+        dbg.filename = uploadFilename;
+
+        // Preflight: can the app even download the image, and how big is it?
+        dbg.step = "preflight";
+        try {
+          var pre = yield fetch(uploadUrl);
+          dbg.preflight = {
+            ok: pre.ok,
+            status: pre.status,
+            contentType: pre.headers?.get?.("content-type"),
+            contentLength: pre.headers?.get?.("content-length")
+          };
+        } catch (e) {
+          dbg.preflight = { error: errInfo(e) };
+        }
+
+        dbg.step = "buildForm";
+        var form = new FormData();
+        form.append("file", {
+          uri: uploadUrl,
+          name: uploadFilename,
+          type: mime
+        });
+        form.append("name", resolvedSticker.name);
+        form.append("description", resolvedSticker.description ?? resolvedSticker.name);
+        var tag = resolvedSticker.tags?.split(",")?.[0]?.trim() || "\u2B50";
+        form.append("tags", tag);
+        dbg.formFields = { name: resolvedSticker.name, tags: tag };
+
+        dbg.step = "upload";
+        var rawRes;
+        try {
+          rawRes = yield fetch("https://discord.com/api/v10/guilds/" + guild.id + "/stickers", {
             method: "POST",
-            headers: {
-              Authorization: token
-            },
+            headers: { Authorization: token },
             body: form
           });
-          res = {
-            ok: rawRes.ok,
-            status: rawRes.status,
-            body: yield rawRes.json().catch(function() {
-              return {};
-            })
-          };
+        } catch (e) {
+          dbg.uploadError = errInfo(e);
+          copyDebug(dbg, "Upload failed (network) \u2014 debug info copied");
+          return;
         }
-        if (res.ok) {
+
+        dbg.step = "readResponse";
+        var body = yield rawRes.json().catch(function() {
+          return {};
+        });
+        dbg.status = rawRes.status;
+        dbg.responseBody = body;
+        if (rawRes.ok) {
           (0, import_toasts.showToast)("Added " + resolvedSticker.name + " to " + guild.name, (0, import_assets.getAssetIDByName)("Check"));
         } else {
-          var { clipboard: clipboard2 } = require("@vendetta/metro/common");
-          var fullErrorText = JSON.stringify(res.body ?? {
-            message: "no body",
-            status: res.status
-          });
-          clipboard2.setString(fullErrorText);
-          (0, import_toasts.showToast)("Failed \u2014 full error copied to clipboard, paste it somewhere", (0, import_assets.getAssetIDByName)("Small"));
+          copyDebug(dbg, "Failed (" + rawRes.status + ") \u2014 debug info copied");
         }
       } catch (e) {
-        (0, import_toasts.showToast)(e?.message ?? "Something went wrong", (0, import_assets.getAssetIDByName)("Small"));
+        dbg.error = errInfo(e);
+        copyDebug(dbg, "Error at step '" + dbg.step + "' \u2014 debug info copied");
       }
     })();
   };
